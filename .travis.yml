@@ -1,0 +1,10 @@
+---
+language: go
+services:
+  - docker
+script:
+  - make build
+  - test -f bin/amd64/rdss-siegfried-service
+  - make container
+  - docker images | grep JiscRDSS/rdss-siegfried-service-amd64
+  - make test

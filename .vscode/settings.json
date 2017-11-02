@@ -1,0 +1,7 @@
+{
+    "files.exclude": {
+        "**/.container-*": true,
+        "**/.dockerfile-*": true,
+        "**/.push-*": true
+    }
+}

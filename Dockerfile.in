@@ -1,0 +1,18 @@
+FROM golang:1.9-alpine as builder
+
+RUN apk add --no-cache curl unzip git \
+    && curl -sL -o /data.zip https://github.com/richardlehane/siegfried/releases/download/v1.7.6/data_1-7-6.zip \
+    && unzip -q /data.zip \
+    && go get github.com/richardlehane/siegfried/cmd/sf \
+    && sf -home /siegfried -update
+
+FROM ARG_FROM
+
+ADD bin/ARG_ARCH/ARG_BIN /ARG_BIN
+
+COPY --from=builder /siegfried /siegfried
+COPY --from=builder /go/bin/sf /sf
+
+USER nobody:nobody
+ENTRYPOINT ["/ARG_BIN"]
+CMD ["-home", "/siegfried", "-sf", "/sf"]
