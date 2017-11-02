@@ -8,7 +8,7 @@ This is a prototype.
 
 Open a terminal and run the following command and leave it running:
 
-    $ docker run -p "8080" artefactual/rdss-siegfried-service-amd64:v0.1.0
+    $ docker run --rm -p "8080:8080" artefactual/rdss-siegfried-service-amd64:v0.1.0
 
 In a different terminal run:
 
