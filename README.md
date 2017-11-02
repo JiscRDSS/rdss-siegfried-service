@@ -12,7 +12,7 @@ Open a terminal and run the following command and leave it running:
 
 In a different terminal run:
 
-    $ curl -v 127.0.0.1:8080/(echo -n '/siegfried/default.sig' | base64)
+    $ curl -v 127.0.0.1:8080/$(echo -n '/siegfried/default.sig' | base64)
 
 ## Sharing data with the service
 
@@ -25,7 +25,7 @@ Bind mount a volume to make it available in the container as follows:
 
 In a different terminal run:
 
-    $ curl -v 127.0.0.1.8080/(echo -n '/mnt/my-data/foobar.iso' | base64)
+    $ curl -v 127.0.0.1.8080/$(echo -n '/mnt/my-data/foobar.iso' | base64)
 
 We've shared our local directory `/mnt/my-data` with the container and tried
 to identify the `/mnt/my-data/foobar.iso` file.
