@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -63,9 +64,13 @@ func decodePath(path string) ([]byte, error) {
 	}
 	data, err := base64.URLEncoding.DecodeString(path[1:])
 	if err != nil {
-		return nil, fmt.Errorf("Error base64 decoding file path, error message %v", err)
+		return nil, fmt.Errorf("error base64 decoding file path: %v", err)
 	}
 	return data, nil
+}
+
+type result struct {
+	PUID string `json:"puid"`
 }
 
 func httpd(ctx context.Context, addr string) {
@@ -82,10 +87,17 @@ func httpd(ctx context.Context, addr string) {
 		}
 		puid, err := identify(ctx, path)
 		if err != nil {
-			handleErr(w, http.StatusBadRequest, err)
+			handleErr(w, http.StatusInternalServerError, err)
 			return
 		}
-		fmt.Fprint(w, puid)
+		res := result{PUID: puid}
+		blob, err := json.Marshal(res)
+		if err != nil {
+			handleErr(w, http.StatusInternalServerError, err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json: charset=utf-8")
+		w.Write(blob)
 	})
 	server := &http.Server{
 		Addr:           addr,
