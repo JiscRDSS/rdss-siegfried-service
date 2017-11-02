@@ -21,7 +21,7 @@ Bind mount a volume to make it available in the container as follows:
     $ docker run \
     	--rm -p "8080:8080" \
     	--mount "type=bind,src=/mnt/my-data,dst=/mnt/my-data,readonly" \
-    		artefactual/rdss-siegfried-service-amd64:v0.1.0
+    		artefactual/rdss-siegfried-service-amd64:v0.2.0
 
 In a different terminal run:
 
