@@ -17,6 +17,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+
 	"github.com/JiscRDSS/rdss-siegfried-service/internal/group"
 )
 
@@ -26,9 +29,10 @@ func usage() {
 
 func main() {
 	var (
-		addr = flag.String("addr", ":8080", "tcp network address")
-		sf   = flag.String("sf", "/sf", "sf binary")
-		home = flag.String("home", "/siegfried", "siegfried data diretory")
+		debug = flag.Bool("debug", false, "debug logging")
+		addr  = flag.String("addr", ":8080", "tcp network address")
+		sf    = flag.String("sf", "/sf", "sf binary")
+		home  = flag.String("home", "/siegfried", "siegfried data diretory")
 	)
 	flag.Parse()
 
@@ -37,18 +41,31 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := run(*addr, *sf, *home); err != nil {
+	if err := run(*addr, *sf, *home, *debug); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(addr, sf, home string) error {
+func run(addr, sf, home string, debug bool) error {
+	// Logging.
+	var logger log.Logger
+	{
+		logLevel := level.AllowInfo()
+		if debug {
+			logLevel = level.AllowAll()
+		}
+		logger = log.NewLogfmtLogger(os.Stderr)
+		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
+		logger = level.NewFilter(logger, logLevel)
+	}
+
 	// Bind listener.
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
+	level.Info(logger).Log("API", fmt.Sprintf("tcp://%s", addr))
 
 	// Start main goroutines.
 	var g group.Group
@@ -56,7 +73,7 @@ func run(addr, sf, home string) error {
 		// Run `siegfried -fpr`.
 		cancel := make(chan struct{})
 		g.Add(func() error {
-			return siegfried(cancel, sf, home)
+			return siegfried(cancel, sf, home, log.With(logger, "component", "siegfried"))
 		}, func(error) {
 			close(cancel)
 		})
@@ -97,8 +114,9 @@ func interrupt(cancel <-chan struct{}) error {
 }
 
 // siegfried
-func siegfried(cancel <-chan struct{}, sf, home string) error {
+func siegfried(cancel <-chan struct{}, sf, home string, logger log.Logger) error {
 	cmd := exec.Command(sf, "-home", home, "-fpr")
+	level.Info(logger).Log("siegfried", sf, "home", home)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -131,8 +149,7 @@ func siegfried(cancel <-chan struct{}, sf, home string) error {
 	select {
 	case err := <-done:
 		if err != nil {
-			fmt.Println(string(sout))
-			fmt.Println(string(serr))
+			level.Error(logger).Log("stdout", sout, "stderr", serr)
 		}
 		return err
 	case <-cancel:
