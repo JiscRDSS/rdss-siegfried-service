@@ -36,5 +36,5 @@ export GOARCH="${ARCH}"
 
 go install                                                         \
     -installsuffix "static"                                        \
-    -ldflags "-X ${PKG}/internal/version.VERSION=${VERSION}"       \
+    -ldflags "-X ${PKG}/internal/version.Version=${VERSION}"       \
     ./...

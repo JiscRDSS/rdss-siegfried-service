@@ -125,6 +125,7 @@ container: .container-$(DOTFILE_IMAGE) container-name
 	    Dockerfile.in > .dockerfile-$(ARCH)
 	@docker build -t $(IMAGE):$(VERSION) -f .dockerfile-$(ARCH) .
 	@docker images -q $(IMAGE):$(VERSION) > $@
+	@docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
 
 container-name:
 	@echo "container: $(IMAGE):$(VERSION)"

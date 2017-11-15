@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -21,10 +22,18 @@ import (
 	"github.com/go-kit/kit/log/level"
 
 	"github.com/JiscRDSS/rdss-siegfried-service/internal/group"
+	"github.com/JiscRDSS/rdss-siegfried-service/internal/version"
 )
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "USAGE\n")
+	fmt.Fprintf(os.Stderr, "  rdss-siegfried-service [flags]\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "VERSION\n")
+	fmt.Fprintf(os.Stderr, "  %s (%s)\n", version.Version, runtime.Version())
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "FLAGS\n")
+	flag.PrintDefaults()
 }
 
 func main() {
@@ -34,12 +43,8 @@ func main() {
 		sf    = flag.String("sf", "/sf", "sf binary")
 		home  = flag.String("home", "/siegfried", "siegfried data diretory")
 	)
+	flag.Usage = usage
 	flag.Parse()
-
-	if len(os.Args) < 1 {
-		usage()
-		os.Exit(1)
-	}
 
 	if err := run(*addr, *sf, *home, *debug); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -57,6 +62,7 @@ func run(addr, sf, home string, debug bool) error {
 		}
 		logger = log.NewLogfmtLogger(os.Stderr)
 		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
+		logger = log.With(logger, "v", version.Version)
 		logger = level.NewFilter(logger, logLevel)
 	}
 
@@ -65,7 +71,7 @@ func run(addr, sf, home string, debug bool) error {
 	if err != nil {
 		return err
 	}
-	level.Info(logger).Log("API", fmt.Sprintf("tcp://%s", addr))
+	level.Info(logger).Log("api", fmt.Sprintf("http://%s", addr))
 
 	// Start main goroutines.
 	var g group.Group
@@ -82,8 +88,9 @@ func run(addr, sf, home string, debug bool) error {
 
 		// Run the HTTP API.
 		g.Add(func() error {
+			logger := log.With(logger, "component", "api")
 			mux := http.NewServeMux()
-			mux.HandleFunc("/", identifyHandler)
+			mux.Handle("/", apiLogging(identifyService{}, logger))
 			return http.Serve(ln, mux)
 		}, func(error) {
 			ln.Close()
@@ -157,8 +164,19 @@ func siegfried(cancel <-chan struct{}, sf, home string, logger log.Logger) error
 	}
 }
 
-// identifyHandler is the main request handler used to identify a file.
-func identifyHandler(w http.ResponseWriter, r *http.Request) {
+func apiLogging(next http.Handler, logger log.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t1 := time.Now()
+		next.ServeHTTP(w, r)
+		t2 := time.Now()
+		level.Info(logger).Log("method", r.Method, "path", r.URL.Path, "took", t2.Sub(t1))
+	})
+}
+
+// identifyService is the main request handler used to identify a file.
+type identifyService struct{}
+
+func (h identifyService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		handleErr(w, http.StatusMethodNotAllowed, fmt.Errorf("only GET is supported"))
 		return
