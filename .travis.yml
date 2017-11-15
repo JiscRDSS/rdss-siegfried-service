@@ -9,3 +9,5 @@ script:
   - make container
   - docker images | grep artefactual/rdss-siegfried-service-amd64
   - make test
+notifications:
+  email: false
